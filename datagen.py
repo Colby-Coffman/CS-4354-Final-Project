@@ -11,6 +11,7 @@ def main():
     generate_doctor(cnx)
     generate_patient(cnx)
     generate_medication(cnx)
+    generate_insurance(cnx)
     cnx.commit()
     cnx.close()
 
@@ -78,6 +79,21 @@ def generate_medication(cnx: mysql.connector.MySQLConnection):
         cursor.execute(add_insurance, (data["generic_name"], side_effects, schedule, data['medical_condition'], random.choice(application)))
     cursor.close()
 
+def generate_insurance(cnx: mysql.connector.MySQLConnection):
+    #Randomly generated data using a list of real US Health Insurance company names
+    #I couldn't find any dataset with the values we wanted - Jacob
+    schedule = ""
+    cursor = cnx.cursor()
+    add_insurance = "INSERT IGNORE INTO Insurance (IName, InitialDeductible, Copay, Coinsurance) VALUES (%s, %s, %s, %s)"
+    df = pd.read_csv('insurance_companies.csv')
+    df = df.where((pd.notnull(df)), None)
+    for index, data in df.iterrows():
+        deductible = round(random.uniform(300,1500),2)
+        copay = round(random.uniform(15,50),2)
+        coinsurance = (str)(random.randint(5,20)) + "%"
+
+        cursor.execute(add_insurance, (data["insurance_company_name"], deductible, copay, coinsurance))
+    cursor.close()
 
 if __name__ == "__main__":
     main()
