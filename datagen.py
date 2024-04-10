@@ -101,17 +101,25 @@ def generate_medication(cnx: mysql.connector.MySQLConnection):
 def generate_insurance(cnx: mysql.connector.MySQLConnection):
     #Randomly generated data using a list of real US Health Insurance company names
     #I couldn't find any dataset with the values we wanted - Jacob
-    schedule = ""
     cursor = cnx.cursor()
     add_insurance = "INSERT IGNORE INTO Insurance (IName, InitialDeductible, Copay, Coinsurance) VALUES (%s, %s, %s, %s)"
     df = pd.read_csv('insurance_companies.csv')
     df = df.where((pd.notnull(df)), None)
     for index, data in df.iterrows():
-        deductible = round(random.uniform(300,1500),2)
-        copay = round(random.uniform(15,50),2)
-        coinsurance = (str)(random.randint(5,20)) + "%"
-
-        cursor.execute(add_insurance, (data["insurance_company_name"], deductible, copay, coinsurance))
+            for plans in range(random.choice(range(1,4))):
+                for plan in range(plans):
+                    plan_name = ""
+                    match (plan):
+                        case 0:
+                            plan_name = f"{data['insurance_company_name']}:Plan A"
+                        case 1:
+                            plan_name = f"{data['insurance_company_name']}:Plan B"
+                        case 2:
+                            plan_name = f"{data['insurance_company_name']}:Plan C"
+                    deductible = int(random.choice(np.arange(300,1501, 1)))
+                    copay = int(random.choice(np.arange(15,51, 1)))
+                    coinsurance = float(random.choice(np.arange(0.0, 0.6, 0.01)))
+                    cursor.execute(add_insurance, (plan_name, deductible, copay, coinsurance))
 
 def generate_workplace(cnx: mysql.connector.MySQLConnection):
     cursor = cnx.cursor()
@@ -143,8 +151,6 @@ def generate_prescriptions(cnx: mysql.connector.MySQLConnection):
         expiry = expiry_date.strftime("%Y-%m-%d %H:%M:%S")  # Corrected format     
         dosage = round(random.uniform(0.1, 10.0), 2)  # Random decimal dosage between 0.1 and 10.0  
         cursor.execute(add_prescription, (ssn, doctor_id, generic_name, date_prescribed, reason, dosage, expiry))
-
-    cnx.commit()
     cursor.close()
 
 if __name__ == "__main__":

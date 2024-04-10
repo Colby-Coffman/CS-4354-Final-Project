@@ -31,7 +31,7 @@ CREATE TABLE Insurance (
 	IName VARCHAR(255) PRIMARY KEY,
     InitialDeductible DECIMAL,
     Copay DECIMAL,
-    Coinsurance DECIMAL
+    Coinsurance DECIMAL(1,2)
 );
 
 CREATE TABLE Pharmacy (
