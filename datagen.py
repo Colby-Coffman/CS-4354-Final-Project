@@ -1,19 +1,25 @@
-import mysql.connector # mysql library
+import mysql.connector  # mysql library
 import pandas as pd
-import names # random name generator library https://github.com/treyhunner/names
+import names  # random name generator library https://github.com/treyhunner/names
 import random
 import numpy as np
-import random_address
+from datetime import datetime, timedelta
+import decimal
+
 
 def main():
-    cnx = mysql.connector.connect(user="root", password=input("Enter Password: "), database="MedicalMinds")
+    cnx = mysql.connector.connect(user="root", password=input(
+        "Enter Password: "), database="MedicalMinds")
     generate_pharmacy(cnx)
     generate_doctor(cnx)
     generate_patient(cnx)
     generate_medication(cnx)
     generate_insurance(cnx)
+    generate_prescriptions(cnx)
+    generate_workplace(cnx)
     cnx.commit()
     cnx.close()
+
 
 def generate_pharmacy(cnx: mysql.connector.MySQLConnection):
     # Uses data from: https://www.johnsnowlabs.com/marketplace/us-pharmacy-drugstore-location/
@@ -24,6 +30,7 @@ def generate_pharmacy(cnx: mysql.connector.MySQLConnection):
         cursor.execute(add_insurance, (data["Pharmacy_Name"], data['Address']))
     cursor.close()
 
+
 def generate_doctor(cnx: mysql.connector.MySQLConnection):
     cursor = cnx.cursor()
     doctor_types = ["General Practitioner", "Pediatricians", "Cardiologist", "Nephrologist", "Dermatologist", "Neurologist",
@@ -31,21 +38,33 @@ def generate_doctor(cnx: mysql.connector.MySQLConnection):
                     "Hematologist", "Otalaryngologist"]
     add_doctor = "INSERT IGNORE INTO Doctor (DFirstName, DLastName, DType) VALUES (%s, %s, %s)"
     for i in range(101):
-        cursor.execute(add_doctor, (names.get_first_name(), names.get_last_name(), random.choice(doctor_types)))
+        cursor.execute(add_doctor, (names.get_first_name(),
+                       names.get_last_name(), random.choice(doctor_types)))
     cursor.close()
-        
+
+
 def generate_patient(cnx: mysql.connector.MySQLConnection):
     cursor = cnx.cursor()
     gender = ["Male", "Female", "Other", "Undisclosed"]
-    ssn = range(111111111, 1000000000)
     age = range(18, 100)
     height = np.arange(152.4, 213.0, step=0.1)
     weight = np.arange(117, 300, step=0.01)
-    add_patient = "INSERT IGNORE INTO Patient (SSN, FirstName, LastName, Gender, Age, Height, Weight) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+    add_patient = "INSERT IGNORE INTO Patient (SSN, FirstName, LastName, Gender, Age, Height, Weight, PCare_doctorid) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+    cursor.execute("SELECT DoctorID FROM Doctor")
+    doctor_ids = [row[0] for row in cursor.fetchall()]  # Fetch all DoctorIDs from the Doctor table
     for i in range(101):
-        cursor.execute(add_patient, (random.choice(ssn), names.get_first_name(), names.get_last_name(), random.choice(gender), 
-                                    random.choice(age), random.choice(height), random.choice(weight)))
+        ssn = random.randint(111111111, 999999999)  # Generate a random SSN
+        first_name = names.get_first_name()
+        last_name = names.get_last_name()
+        gender_choice = random.choice(gender)
+        patient_age = random.choice(age)
+        patient_height = random.choice(height)
+        patient_weight = random.choice(weight)
+        doctor_id = random.choice(doctor_ids)  # Choose a random DoctorID
+        cursor.execute(add_patient, (ssn, first_name, last_name, gender_choice, patient_age, patient_height, patient_weight, doctor_id))
     cursor.close()
+
+
 
 def generate_medication(cnx: mysql.connector.MySQLConnection):
     # Uses data from: https://www.kaggle.com/datasets/jithinanievarghese/drugs-side-effects-and-medical-condition
@@ -76,7 +95,7 @@ def generate_medication(cnx: mysql.connector.MySQLConnection):
         else:
             schedule = "Unscheduled"
 
-        cursor.execute(add_insurance, (data["generic_name"], side_effects, schedule, data['medical_condition'], random.choice(application)))
+        cursor.execute(add_insurance, (data["generic_name"], data['side_effects'], data['drug_classes'], data['medical_condition'], schedule))
     cursor.close()
 
 def generate_insurance(cnx: mysql.connector.MySQLConnection):
@@ -93,6 +112,39 @@ def generate_insurance(cnx: mysql.connector.MySQLConnection):
         coinsurance = (str)(random.randint(5,20)) + "%"
 
         cursor.execute(add_insurance, (data["insurance_company_name"], deductible, copay, coinsurance))
+
+def generate_workplace(cnx: mysql.connector.MySQLConnection):
+    cursor = cnx.cursor()
+    workplace_types = ["Pediatric Center", "Psychiatric Center", "Hospital", "Clinic", "Urgent Care Center", "Surgery Center"]
+    add_workplace = "INSERT IGNORE INTO Workplace (Address, WName, WType) VALUES (%s, %s, %s)"
+    for i in range(101):
+        address = f"{random.randint(100, 999)} {names.get_last_name()} St"  # Generating a random address
+        cursor.execute(add_workplace, (address, names.get_last_name() + " " + random.choice(["Building", "Center", "Hospital"]), random.choice(workplace_types)))
+    cursor.close()
+
+def generate_prescriptions(cnx: mysql.connector.MySQLConnection):
+    cursor = cnx.cursor()
+    cursor.execute("SELECT SSN, PCare_doctorid FROM Patient WHERE PCare_doctorid IS NOT NULL")  # Filtering out patients with null PCare_doctorid
+    patient_data = cursor.fetchall()
+
+    cursor.execute("SELECT Generic_Name, Uses FROM Medication")
+    medication_data = cursor.fetchall()
+    medication_dict = {name: uses for name, uses in medication_data}
+    
+    add_prescription = "INSERT INTO Prescribes (SSN, DoctorID, Generic_Name, Date_Prescribed, Reason, Dosage, Expiry) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+    
+    current_date = datetime.now()
+    expiry_date = current_date + timedelta(days=30)  # Assuming prescriptions expire after 30 days
+
+    for ssn, doctor_id in patient_data:
+        generic_name = random.choice(list(medication_dict.keys()))
+        reason = medication_dict[generic_name]
+        date_prescribed = current_date.strftime("%Y-%m-%d %H:%M:%S")
+        expiry = expiry_date.strftime("%Y-%m-%d %H:%M:%S")  # Corrected format     
+        dosage = round(random.uniform(0.1, 10.0), 2)  # Random decimal dosage between 0.1 and 10.0  
+        cursor.execute(add_prescription, (ssn, doctor_id, generic_name, date_prescribed, reason, dosage, expiry))
+
+    cnx.commit()
     cursor.close()
 
 if __name__ == "__main__":
