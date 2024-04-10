@@ -14,8 +14,8 @@ def main():
     generate_doctor(cnx)
     generate_patient(cnx)
     generate_medication(cnx)
-    
-
+    generate_prescriptions(cnx)
+    generate_workplace(cnx)
     cnx.commit()
     cnx.close()
 
@@ -97,6 +97,39 @@ def generate_medication(cnx: mysql.connector.MySQLConnection):
         cursor.execute(add_insurance, (data["generic_name"], data['side_effects'], data['drug_classes'], data['medical_condition'], schedule))
     cursor.close()
 
+def generate_workplace(cnx: mysql.connector.MySQLConnection):
+    cursor = cnx.cursor()
+    workplace_types = ["Pediatric Center", "Psychiatric Center", "Hospital", "Clinic", "Urgent Care Center", "Surgery Center"]
+    add_workplace = "INSERT IGNORE INTO Workplace (Address, WName, WType) VALUES (%s, %s, %s)"
+    for i in range(101):
+        address = f"{random.randint(100, 999)} {names.get_last_name()} St"  # Generating a random address
+        cursor.execute(add_workplace, (address, names.get_last_name() + " " + random.choice(["Building", "Center", "Hospital"]), random.choice(workplace_types)))
+    cursor.close()
+
+def generate_prescriptions(cnx: mysql.connector.MySQLConnection):
+    cursor = cnx.cursor()
+    cursor.execute("SELECT SSN, PCare_doctorid FROM Patient WHERE PCare_doctorid IS NOT NULL")  # Filtering out patients with null PCare_doctorid
+    patient_data = cursor.fetchall()
+
+    cursor.execute("SELECT Generic_Name, Uses FROM Medication")
+    medication_data = cursor.fetchall()
+    medication_dict = {name: uses for name, uses in medication_data}
+    
+    add_prescription = "INSERT INTO Prescribes (SSN, DoctorID, Generic_Name, Date_Prescribed, Reason, Dosage, Expiry) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+    
+    current_date = datetime.now()
+    expiry_date = current_date + timedelta(days=30)  # Assuming prescriptions expire after 30 days
+
+    for ssn, doctor_id in patient_data:
+        generic_name = random.choice(list(medication_dict.keys()))
+        reason = medication_dict[generic_name]
+        date_prescribed = current_date.strftime("%Y-%m-%d %H:%M:%S")
+        expiry = expiry_date.strftime("%Y-%m-%d %H:%M:%S")  # Corrected format     
+        dosage = round(random.uniform(0.1, 10.0), 2)  # Random decimal dosage between 0.1 and 10.0  
+        cursor.execute(add_prescription, (ssn, doctor_id, generic_name, date_prescribed, reason, dosage, expiry))
+
+    cnx.commit()
+    cursor.close()
 
 if __name__ == "__main__":
     main()
