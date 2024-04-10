@@ -95,7 +95,7 @@ def generate_medication(cnx: mysql.connector.MySQLConnection):
         else:
             schedule = "Unscheduled"
 
-        cursor.execute(add_insurance, (data["generic_name"], data['side_effects'], data['drug_classes'], data['medical_condition'], schedule))
+        cursor.execute(add_insurance, (data["generic_name"], side_effects, schedule, data['medical_condition'], random.choice(application)))
     cursor.close()
 
 def generate_insurance(cnx: mysql.connector.MySQLConnection):
