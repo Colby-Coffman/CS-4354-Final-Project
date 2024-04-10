@@ -48,12 +48,20 @@ def generate_patient(cnx: mysql.connector.MySQLConnection):
 
 def generate_medication(cnx: mysql.connector.MySQLConnection):
     # Uses data from: https://www.kaggle.com/datasets/jithinanievarghese/drugs-side-effects-and-medical-condition
-    schedule = ""
     cursor = cnx.cursor()
+    schedule = ""
+    side_effects = ""
+    application = ["Take once daily", "Take twice daily", "Take one after every meal", "Apply topically"]
     add_insurance = "INSERT IGNORE INTO Medication (Generic_Name, Side_effects, Classification, Uses, Applications) VALUES (%s, %s, %s, %s, %s)"
     df = pd.read_csv('drugs_side_effects_drugs_com.csv')
     df = df.where((pd.notnull(df)), None)
     for index, data in df.iterrows():
+        if data["generic_name"] == None:
+            continue
+        if data['side_effects'] == None:
+            side_effects = "Please ask your prescribing doctor about any complications"
+        else:
+            side_effects = data["side_effects"]
         if data['csa'] == '1':
             schedule = 'Schedule 1'
         elif data['csa'] == '2':
@@ -65,9 +73,9 @@ def generate_medication(cnx: mysql.connector.MySQLConnection):
         elif data['csa'] == '5':
             schedule = 'Schedule 5'
         else:
-            schedule = None
+            schedule = "Unscheduled"
 
-        cursor.execute(add_insurance, (data["generic_name"], data['side_effects'], data['drug_classes'], data['medical_condition'], schedule))
+        cursor.execute(add_insurance, (data["generic_name"], side_effects, schedule, data['medical_condition'], random.choice(application)))
     cursor.close()
 
 
