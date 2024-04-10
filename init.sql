@@ -17,7 +17,7 @@ CREATE TABLE Patient (
     Age INT(3),
     Height INT,
     Weight DECIMAL(5, 2),
-    PCare_doctorid INT,SSN
+    PCare_doctorid INT,
     CONSTRAINT patient_pcare_fk FOREIGN KEY (PCare_doctorid) REFERENCES Doctor (DoctorID)
 );
 
