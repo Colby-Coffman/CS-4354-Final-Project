@@ -22,6 +22,7 @@ def main():
     generate_works_at(cnx)
     generate_covered_by(cnx)
     generate_covers(cnx)
+    generate_has(cnx)
     cnx.commit()
     cnx.close()
 
@@ -282,6 +283,34 @@ def generate_covers(cnx: mysql.connector.MySQLConnection):
             cursor.execute("SELECT Generic_Name FROM Covers")
             generic_name = cursor.fetchmany(1)[0][0]
             cursor.execute(add_covers, (generic_name, insurance[0]))
+
+def generate_has(cnx: mysql.connector.MySQLConnection):
+    cursor = cnx.cursor(buffered=True)
+    add_has = "INSERT IGNORE INTO Has (Generic_Name, PName, Retail_price) VALUES (%s, %s, %s)"
+    cursor.execute("SELECT m.Generic_Name FROM Medication m LEFT JOIN Has h ON h.Generic_Name=m.Generic_Name WHERE h.Generic_Name IS NULL")
+    excluded_medications = cursor.fetchall()
+    cursor.execute("SELECT p.PName FROM Pharmacy p LEFT JOIN Has h ON h.PName=h.PName WHERE h.PName IS NULL")
+    excluded_pharmacies = cursor.fetchall()
+    while (excluded_medications and excluded_pharmacies):
+        medication_selection = random.randint(100, 200)
+        if (medication_selection > len(excluded_medications)):
+            medication_selection = len(excluded_medications)
+        pharmacy_selection = random.randint(30, 40)
+        if (pharmacy_selection > len(excluded_pharmacies)):
+            pharmacy_selection = len(excluded_pharmacies)
+        for i in range(medication_selection):
+            for j in range(pharmacy_selection):
+                retail_price = random.choice(np.arange(5, 300, 0.01))
+                cursor.execute(add_has, (excluded_medications[i][0], excluded_pharmacies[j][0], retail_price))
+        cursor.execute("SELECT m.Generic_Name FROM Medication m LEFT JOIN Has h ON h.Generic_Name=m.Generic_Name WHERE h.Generic_Name IS NULL")
+        excluded_medications = cursor.fetchall()
+        cursor.execute("SELECT p.PName FROM Pharmacy p LEFT JOIN Has h ON h.PName=p.PName WHERE h.PName IS NULL")
+        excluded_pharmacies = cursor.fetchall()
+    if (excluded_pharmacies):
+        for pharmacy in excluded_pharmacies:
+            cursor.execute("SELECT Generic_Name, Retail_price FROM Has")
+            generic_name, retail_price = cursor.fetchone(1)[0]
+            cursor.execute(add_has, (generic_name, pharmacy[0], retail_price))
 
 if __name__ == "__main__":
     main()

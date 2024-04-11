@@ -89,7 +89,7 @@ CREATE TABLE Covers (
 CREATE TABLE Has (
 	Generic_Name VARCHAR(255),
     PName VARCHAR(255),
-    Retail_price DECIMAL,
+    Retail_price DECIMAL(7,2),
     PRIMARY KEY (Generic_Name, PName),
     CONSTRAINT has_medication_pk FOREIGN KEY (Generic_Name) REFERENCES Medication (Generic_Name),
     CONSTRAINT has_pharmacy_pk FOREIGN KEY (PName) REFERENCES Pharmacy (PName)
