@@ -6,6 +6,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import decimal
+import helpers
 
 
 def main():
@@ -33,25 +34,29 @@ def generate_pharmacy(cnx: mysql.connector.MySQLConnection):
 
 
 def generate_doctor(cnx: mysql.connector.MySQLConnection):
-    cursor = cnx.cursor()
-    doctor_types = ["General Practitioner", "Pediatricians", "Cardiologist", "Nephrologist", "Dermatologist", "Neurologist",
-                    "Psychiatrist", "Gynecologist", "Gastroenterologist", "Geriatrician", "Nephrologist", "Oncologist", "Endocrinologist",
+    cursor = cnx.cursor(buffered=True)
+    doctor_types = ["Cardiologist", "Nephrologist", "Dermatologist", "Neurologist", "Psychiatrist", 
+                    "Gynecologist", "Gastroenterologist", "Geriatrician", "Nephrologist", "Oncologist", "Endocrinologist",
                     "Hematologist", "Otalaryngologist"]
     add_doctor = "INSERT IGNORE INTO Doctor (DFirstName, DLastName, DType) VALUES (%s, %s, %s)"
+    doctor_type = None
     for i in range(101):
-        cursor.execute(add_doctor, (names.get_first_name(),
-                       names.get_last_name(), random.choice(doctor_types)))
+        if (i < 40):
+            doctor_type = "General Practitioner"
+        else:
+            doctor_type = random.choice(doctor_types)
+        cursor.execute(add_doctor, (names.get_first_name(), names.get_last_name(), doctor_type))
     cursor.close()
 
 
 def generate_patient(cnx: mysql.connector.MySQLConnection):
-    cursor = cnx.cursor()
+    cursor = cnx.cursor(buffered=True)
     gender = ["Male", "Female", "Other", "Undisclosed"]
     age = range(18, 100)
     height = np.arange(152.4, 213.0, step=0.1)
     weight = np.arange(117, 300, step=0.01)
     add_patient = "INSERT IGNORE INTO Patient (SSN, FirstName, LastName, Gender, Age, Height, Weight, PCare_doctorid) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-    cursor.execute("SELECT DoctorID FROM Doctor")
+    cursor.execute("SELECT DoctorID FROM Doctor WHERE DType='General Practitioner'")
     doctor_ids = [row[0] for row in cursor.fetchall()]  # Fetch all DoctorIDs from the Doctor table
     for i in range(101):
         ssn = random.randint(111111111, 999999999)  # Generate a random SSN
@@ -61,7 +66,9 @@ def generate_patient(cnx: mysql.connector.MySQLConnection):
         patient_age = random.choice(age)
         patient_height = random.choice(height)
         patient_weight = random.choice(weight)
-        doctor_id = random.choice(doctor_ids)  # Choose a random DoctorID
+        doctor_id = None
+        if (i <= 40):
+            doctor_id = random.choice(doctor_ids)
         cursor.execute(add_patient, (ssn, first_name, last_name, gender_choice, patient_age, patient_height, patient_weight, doctor_id))
     cursor.close()
 
@@ -69,7 +76,7 @@ def generate_patient(cnx: mysql.connector.MySQLConnection):
 
 def generate_medication(cnx: mysql.connector.MySQLConnection):
     # Uses data from: https://www.kaggle.com/datasets/jithinanievarghese/drugs-side-effects-and-medical-condition
-    cursor = cnx.cursor()
+    cursor = cnx.cursor(buffered=True)
     schedule = ""
     side_effects = ""
     application = ["Take once daily", "Take twice daily", "Take one after every meal", "Apply topically"]
@@ -102,7 +109,7 @@ def generate_medication(cnx: mysql.connector.MySQLConnection):
 def generate_insurance(cnx: mysql.connector.MySQLConnection):
     #Randomly generated data using a list of real US Health Insurance company names
     #I couldn't find any dataset with the values we wanted - Jacob
-    cursor = cnx.cursor()
+    cursor = cnx.cursor(buffered=True)
     add_insurance = "INSERT IGNORE INTO Insurance (IName, InitialDeductible, Copay, Coinsurance) VALUES (%s, %s, %s, %s)"
     df = pd.read_csv('insurance_companies.csv')
     df = df.where((pd.notnull(df)), None)
@@ -123,7 +130,7 @@ def generate_insurance(cnx: mysql.connector.MySQLConnection):
                     cursor.execute(add_insurance, (plan_name, deductible, copay, coinsurance))
 
 def generate_workplace(cnx: mysql.connector.MySQLConnection):
-    cursor = cnx.cursor()
+    cursor = cnx.cursor(buffered=True)
     workplace_types = ["Pediatric Center", "Psychiatric Center", "Hospital", "Clinic", "Urgent Care Center", "Surgery Center"]
     add_workplace = "INSERT IGNORE INTO Workplace (Address, WName, WType) VALUES (%s, %s, %s)"
     for i in range(101):
@@ -132,28 +139,57 @@ def generate_workplace(cnx: mysql.connector.MySQLConnection):
     cursor.close()
 
 def generate_prescriptions(cnx: mysql.connector.MySQLConnection):
-    cursor = cnx.cursor()
-    cursor.execute("SELECT SSN, PCare_doctorid FROM Patient WHERE PCare_doctorid IS NOT NULL")  # Filtering out patients with null PCare_doctorid
-    patient_data = cursor.fetchall()
-    cursor.execute("SELECT Generic_Name, Uses FROM Medication")
-    medication_data = cursor.fetchall()
-    medication_dict = {name: uses for name, uses in medication_data}
-    add_prescription = "INSERT INTO Prescribes (SSN, DoctorID, Generic_Name, Date_Prescribed, Reason, Dosage, Expiry) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+    cursor = cnx.cursor(buffered=True)
+    add_prescription = "INSERT IGNORE INTO Prescribes (SSN, DoctorID, Generic_Name, Date_Prescribed, Reason, Dosage, Expiry) VALUES (%s, %s, %s, %s, %s, %s, %s)"
     current_date = datetime.now()
     expiry_date = None
-    for ssn, doctor_id in patient_data:
-        generic_name = random.choice(list(medication_dict.keys()))
-        reason = medication_dict[generic_name]
-        year_or_month = random.randint(0,1)
-        match (year_or_month):
-            case 0:
-                expiry_date = current_date + relativedelta(years=1)
-            case 1:
-                expiry_date = current_date + relativedelta(months=6)
-        date_prescribed = current_date.strftime("%Y-%m-%d %H:%M:%S")
-        expiry = expiry_date.strftime("%Y-%m-%d %H:%M:%S")  # Corrected format     
-        dosage = random.choice(np.arange(0.1, 10.05, 0.05)) # Random decimal dosage between 0.1 and 10.0  
-        cursor.execute(add_prescription, (ssn, doctor_id, generic_name, date_prescribed, reason, dosage, expiry))
+    cursor.execute("SELECT pa.SSN FROM Patient pa LEFT JOIN Prescribes pr ON pa.SSN=pr.SSN WHERE pr.SSN IS NULL")
+    excluded_patients = cursor.fetchall()
+    cursor.execute("SELECT d.DoctorID FROM Doctor d LEFT JOIN Prescribes pr ON d.DoctorID=pr.DoctorID WHERE pr.DoctorID IS NULL")
+    excluded_doctors = cursor.fetchall()
+    cursor.execute("SELECT m.Generic_Name, m.Uses FROM Medication m LEFT JOIN Prescribes pr ON m.Generic_Name=pr.Generic_Name WHERE pr.Generic_Name IS NULL")
+    excluded_medications = cursor.fetchall()
+    while ((excluded_patients) and (excluded_doctors) and (excluded_medications)):
+        patients_selection = random.randint(1,3)
+        if (patients_selection > len(excluded_patients)):
+            patients_selection = len(excluded_patients)
+        doctors_selection = random.randint(1,3)
+        if (doctors_selection > len(excluded_doctors)):
+            doctors_selection = len(excluded_doctors)
+        medications_selection = random.randint(1,3)
+        if (medications_selection > len(excluded_medications)):
+            medications_selection = len(excluded_medications)
+        for i in range(patients_selection):
+            for j in range(doctors_selection):
+                for k in range(medications_selection):
+                    date_prescribed, expiry, dosage = helpers.random_expiry_and_dosage()
+                    cursor.execute(add_prescription, (excluded_patients[i][0], excluded_doctors[j][0], excluded_medications[k][0],
+                                                      date_prescribed, excluded_medications[k][1], dosage, expiry))
+        cursor.execute("SELECT pa.SSN FROM Patient pa LEFT JOIN Prescribes pr ON pa.SSN=pr.SSN WHERE pr.SSN IS NULL")
+        excluded_patients = cursor.fetchall()
+        cursor.execute("SELECT d.DoctorID FROM Doctor d LEFT JOIN Prescribes pr ON d.DoctorID=pr.DoctorID WHERE pr.DoctorID IS NULL")
+        excluded_doctors = cursor.fetchall()
+        cursor.execute("SELECT m.Generic_Name, m.Uses FROM Medication m LEFT JOIN Prescribes pr ON m.Generic_Name=pr.Generic_Name WHERE pr.Generic_Name IS NULL")
+        excluded_medications = cursor.fetchall()
+    if (excluded_patients):
+        for patient in excluded_patients:
+            cursor.execute("SELECT DoctorID, Generic_Name FROM Prescribes")
+            doctor_id, generic_name = cursor.fetchmany(1)[0]
+            cursor.execute(f"SELECT Uses FROM Medication WHERE Generic_Name='{generic_name}'")
+            usage = cursor.fetchmany(1)[0][0]
+            date_prescribed, expiry, dosage = helpers.random_expiry_and_dosage()
+            cursor.execute(add_prescription, (patient[0], doctor_id, generic_name, date_prescribed, usage, dosage, expiry))
+    if (excluded_doctors):
+        for doctor in excluded_doctors:
+            cursor.execute("SELECT SSN, Generic_Name FROM Prescribes ORDER BY Generic_Name DESC")
+            ssn, generic_name = cursor.fetchmany(1)[0][0]
+            cursor.execute(f"SELECT Uses FROM Medication WHERE Generic_Name='{generic_name}'")
+            usage = cursor.fetchmany(1)[0]
+            date_prescribed, expiry, dosage = helpers.random_expiry_and_dosage
+            cursor.execute(add_prescription, (ssn, doctor[0], generic_name, date_prescribed, usage, dosage, expiry))
+
+
+        
     cursor.close()
 
 if __name__ == "__main__":
