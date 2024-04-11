@@ -19,6 +19,8 @@ def main():
     generate_insurance(cnx)
     generate_prescriptions(cnx)
     generate_workplace(cnx)
+    generate_works_at(cnx)
+    generate_covered_by(cnx)
     cnx.commit()
     cnx.close()
 
@@ -141,8 +143,6 @@ def generate_workplace(cnx: mysql.connector.MySQLConnection):
 def generate_prescriptions(cnx: mysql.connector.MySQLConnection):
     cursor = cnx.cursor(buffered=True)
     add_prescription = "INSERT IGNORE INTO Prescribes (SSN, DoctorID, Generic_Name, Date_Prescribed, Reason, Dosage, Expiry) VALUES (%s, %s, %s, %s, %s, %s, %s)"
-    current_date = datetime.now()
-    expiry_date = None
     cursor.execute("SELECT pa.SSN FROM Patient pa LEFT JOIN Prescribes pr ON pa.SSN=pr.SSN WHERE pr.SSN IS NULL")
     excluded_patients = cursor.fetchall()
     cursor.execute("SELECT d.DoctorID FROM Doctor d LEFT JOIN Prescribes pr ON d.DoctorID=pr.DoctorID WHERE pr.DoctorID IS NULL")
@@ -182,15 +182,78 @@ def generate_prescriptions(cnx: mysql.connector.MySQLConnection):
     if (excluded_doctors):
         for doctor in excluded_doctors:
             cursor.execute("SELECT SSN, Generic_Name FROM Prescribes ORDER BY Generic_Name DESC")
-            ssn, generic_name = cursor.fetchmany(1)[0][0]
+            ssn, generic_name = cursor.fetchmany(1)[0]
             cursor.execute(f"SELECT Uses FROM Medication WHERE Generic_Name='{generic_name}'")
-            usage = cursor.fetchmany(1)[0]
-            date_prescribed, expiry, dosage = helpers.random_expiry_and_dosage
+            usage = cursor.fetchmany(1)[0][0]
+            date_prescribed, expiry, dosage = helpers.random_expiry_and_dosage()
             cursor.execute(add_prescription, (ssn, doctor[0], generic_name, date_prescribed, usage, dosage, expiry))
-
-
-        
+    
+def generate_works_at(cnx: mysql.connector.MySQLConnection):
+    cursor = cnx.cursor(buffered=True)
+    add_works_at = "INSERT IGNORE INTO Works_at (DoctorID, Address) VALUES (%s, %s)"
+    cursor.execute("SELECT d.DoctorID FROM Doctor d LEFT JOIN Works_at w ON d.DoctorID=w.DoctorID WHERE w.DoctorID IS NULL")
+    excluded_doctors = cursor.fetchall()
+    cursor.execute("SELECT wp.Address FROM Workplace wp LEFT JOIN Works_at w ON wp.Address=w.Address WHERE w.Address IS NULL")
+    excluded_workplaces = cursor.fetchall()
+    while (excluded_doctors and excluded_doctors):
+        workplace_selection = random.randint(1,2)
+        if (workplace_selection > len(excluded_workplaces)):
+            workplace_selection = len(excluded_workplaces)
+        doctors_selection = random.randint(1,2)
+        if (doctors_selection > len(excluded_doctors)):
+            doctors_selection = len(excluded_doctors)
+        for i in range(workplace_selection):
+            for j in range(doctors_selection):
+                cursor.execute(add_works_at, (excluded_doctors[j][0], excluded_workplaces[i][0]))
+        cursor.execute("SELECT d.DoctorID FROM Doctor d LEFT JOIN Works_at w ON d.DoctorID=w.DoctorID WHERE w.DoctorID IS NULL")
+        excluded_doctors = cursor.fetchall()
+        cursor.execute("SELECT wp.Address FROM Workplace wp LEFT JOIN Works_at w ON wp.Address=w.Address WHERE w.Address IS NULL")
+        excluded_workplaces = cursor.fetchall()
+    if (excluded_doctors):
+        for doctor in excluded_doctors:
+            cursor.execute("SELECT Address FROM Works_at")
+            address = cursor.fetchmany(1)[0][0]
+            cursor.execute(add_works_at, (address, doctor[0]))
+    if (excluded_workplaces):
+        for workplace in excluded_workplaces:
+            cursor.execute("SELECT DoctorID FROM Works_at ORDER BY DoctorID DESC")
+            doctor_id = cursor.fetchmany(1)[0][0]
+            cursor.execute(add_works_at, (workplace[0], doctor_id))        
     cursor.close()
+
+def generate_covered_by(cnx: mysql.connector.MySQLConnection):
+    cursor = cnx.cursor(buffered=True)
+    add_covered_by = "INSERT IGNORE INTO Covered_by (SSN, IName, DeductibleLeft) VALUES (%s, %s, %s)"
+    cursor.execute("SELECT p.SSN FROM Patient p LEFT JOIN Covered_by c ON p.SSN=c.SSN WHERE c.SSN IS NULL")
+    excluded_patients = cursor.fetchall()
+    cursor.execute("SELECT i.IName, i.InitialDeductible FROM Insurance i LEFT JOIN Covered_by c ON i.IName=c.IName WHERE c.IName IS NULL")
+    excluded_insurances = cursor.fetchall()
+    while (excluded_patients and excluded_insurances):
+        patient_selection = random.randint(1,2)
+        if (patient_selection > len(excluded_patients)):
+            patient_selection = len(excluded_patients)
+        insurance_selection = random.randint(1,2)
+        if (insurance_selection > len(excluded_insurances)):
+            insurance_selection = len(excluded_insurances)
+        for i in range(patient_selection):
+            for j in range(insurance_selection):
+                cursor.execute(add_covered_by, (excluded_patients[i][0], excluded_insurances[j][0], excluded_insurances[j][1]))
+        cursor.execute("SELECT p.SSN FROM Patient p LEFT JOIN Covered_by c ON p.SSN=c.SSN WHERE c.SSN IS NULL")
+        excluded_patients = cursor.fetchall()
+        cursor.execute("SELECT i.IName, i.InitialDeductible FROM Insurance i LEFT JOIN Covered_by c ON i.IName=c.IName WHERE c.IName IS NULL")
+        excluded_insurances = cursor.fetchall()
+    if (excluded_patients):
+        for patient in excluded_patients:
+            cursor.execute("SELECT IName FROM Covered_by")
+            insurance_name = cursor.fetchmany(1)[0][0]
+            cursor.execute(f"SELECT InitialDeductible FROM Insurance WHERE IName='{insurance_name}'")
+            initial_deductible = cursor.fetchmany(1)[0][0]
+            cursor.execute(add_covered_by, (patient[0], insurance_name, initial_deductible))
+    if (excluded_insurances):
+        for insurance in excluded_insurances:
+            cursor.execute("SELECT SSN FROM Covered_by ORDER BY SSN Desc")
+            ssn = cursor.fetchmany(1)[0][0]
+            cursor.execute(add_covered_by, (ssn, insurance[0], insurance[1]))
 
 if __name__ == "__main__":
     main()
