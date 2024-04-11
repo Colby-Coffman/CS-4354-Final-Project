@@ -21,6 +21,7 @@ def main():
     generate_workplace(cnx)
     generate_works_at(cnx)
     generate_covered_by(cnx)
+    generate_covers(cnx)
     cnx.commit()
     cnx.close()
 
@@ -254,6 +255,33 @@ def generate_covered_by(cnx: mysql.connector.MySQLConnection):
             cursor.execute("SELECT SSN FROM Covered_by ORDER BY SSN Desc")
             ssn = cursor.fetchmany(1)[0][0]
             cursor.execute(add_covered_by, (ssn, insurance[0], insurance[1]))
+    
+def generate_covers(cnx: mysql.connector.MySQLConnection):
+    cursor = cnx.cursor()
+    add_covers = "INSERT IGNORE INTO Covers (Generic_Name, IName) VALUES (%s, %s)"
+    cursor.execute("SELECT m.Generic_Name FROM Medication m LEFT JOIN Covers c ON m.Generic_Name=c.Generic_Name WHERE c.Generic_Name IS NULL")
+    excluded_medications = cursor.fetchall()
+    cursor.execute("SELECT i.IName FROM Insurance i LEFT JOIN Covers c ON i.IName=c.IName WHERE c.IName IS NULL")
+    excluded_insurances = cursor.fetchall()
+    while (excluded_medications and excluded_insurances):
+        medication_selection = random.randint(30, 50)
+        if (medication_selection > len(excluded_medications)):
+            medication_selection = len(excluded_medications)
+        insurance_selection = random.randint(1,2)
+        if (insurance_selection > len(excluded_insurances)):
+            insurance_selection = len(excluded_insurances)
+        for i in range(medication_selection):
+            for j in range(insurance_selection):
+                cursor.execute(add_covers, (excluded_medications[i][0], excluded_insurances[j][0]))
+        cursor.execute("SELECT m.Generic_Name FROM Medication m LEFT JOIN Covers c ON m.Generic_Name=c.Generic_Name WHERE c.Generic_Name IS NULL")
+        excluded_medications = cursor.fetchall()
+        cursor.execute("SELECT i.IName FROM Insurance i LEFT JOIN Covers c ON i.IName=c.IName WHERE c.IName IS NULL")
+        excluded_insurances = cursor.fetchall()
+    if (excluded_insurances):
+        for insurance in excluded_insurances:
+            cursor.execute("SELECT Generic_Name FROM Covers")
+            generic_name = cursor.fetchmany(1)[0][0]
+            cursor.execute(add_covers, (generic_name, insurance[0]))
 
 if __name__ == "__main__":
     main()
