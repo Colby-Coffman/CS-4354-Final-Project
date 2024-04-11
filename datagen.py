@@ -4,6 +4,7 @@ import names  # random name generator library https://github.com/treyhunner/name
 import random
 import numpy as np
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 import decimal
 
 
@@ -106,7 +107,7 @@ def generate_insurance(cnx: mysql.connector.MySQLConnection):
     df = pd.read_csv('insurance_companies.csv')
     df = df.where((pd.notnull(df)), None)
     for index, data in df.iterrows():
-            for plans in range(random.choice(range(1,4))):
+            for plans in range(random.randint(1,3)):
                 for plan in range(plans):
                     plan_name = ""
                     match (plan):
@@ -134,22 +135,24 @@ def generate_prescriptions(cnx: mysql.connector.MySQLConnection):
     cursor = cnx.cursor()
     cursor.execute("SELECT SSN, PCare_doctorid FROM Patient WHERE PCare_doctorid IS NOT NULL")  # Filtering out patients with null PCare_doctorid
     patient_data = cursor.fetchall()
-
     cursor.execute("SELECT Generic_Name, Uses FROM Medication")
     medication_data = cursor.fetchall()
     medication_dict = {name: uses for name, uses in medication_data}
-    
     add_prescription = "INSERT INTO Prescribes (SSN, DoctorID, Generic_Name, Date_Prescribed, Reason, Dosage, Expiry) VALUES (%s, %s, %s, %s, %s, %s, %s)"
-    
     current_date = datetime.now()
-    expiry_date = current_date + timedelta(days=30)  # Assuming prescriptions expire after 30 days
-
+    expiry_date = None
     for ssn, doctor_id in patient_data:
         generic_name = random.choice(list(medication_dict.keys()))
         reason = medication_dict[generic_name]
+        year_or_month = random.randint(0,1)
+        match (year_or_month):
+            case 0:
+                expiry_date = current_date + relativedelta(years=1)
+            case 1:
+                expiry_date = current_date + relativedelta(months=6)
         date_prescribed = current_date.strftime("%Y-%m-%d %H:%M:%S")
         expiry = expiry_date.strftime("%Y-%m-%d %H:%M:%S")  # Corrected format     
-        dosage = round(random.uniform(0.1, 10.0), 2)  # Random decimal dosage between 0.1 and 10.0  
+        dosage = random.choice(np.arange(0.1, 10.05, 0.05)) # Random decimal dosage between 0.1 and 10.0  
         cursor.execute(add_prescription, (ssn, doctor_id, generic_name, date_prescribed, reason, dosage, expiry))
     cursor.close()
 

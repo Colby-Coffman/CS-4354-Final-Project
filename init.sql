@@ -31,7 +31,7 @@ CREATE TABLE Insurance (
 	IName VARCHAR(255) PRIMARY KEY,
     InitialDeductible DECIMAL,
     Copay DECIMAL,
-    Coinsurance DECIMAL(1,2)
+    Coinsurance DECIMAL(2, 2)
 );
 
 CREATE TABLE Pharmacy (
@@ -53,7 +53,7 @@ CREATE TABLE Prescribes (
     Generic_Name VARCHAR(255),
     Date_Prescribed DATETIME,
     Reason TEXT,
-    Dosage DECIMAL,
+    Dosage DECIMAL(4,2),
     Expiry DATETIME,
     PRIMARY KEY (SSN, DoctorID, Generic_Name, Date_Prescribed),
     CONSTRAINT prescribes_patient_fk FOREIGN KEY (SSN) REFERENCES Patient (SSN),
