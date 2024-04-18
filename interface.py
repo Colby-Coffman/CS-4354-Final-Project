@@ -153,7 +153,7 @@ def context_output():
                 time.sleep(1)
                 ct.context = 'patient_init'
             else:
-                patient = patient[0]
+                patient = list(patient[0])
                 ct.context = 'patient_display'
             cursor.close()
         case 'patient_display':
@@ -163,15 +163,7 @@ def context_output():
             cursor.execute(f"SELECT PCare_doctorid FROM Patient WHERE SSN={patient_ssn}")
             new_pcare = cursor.fetchone()
             if (new_pcare):
-                global patient
-                new_patient_ssn = patient[0]
-                new_patient_fname = patient[1]
-                new_patient_lname = patient[2]
-                new_patient_gender = patient[3]
-                new_patient_age = patient[4]
-                new_patient_height = patient[5]
-                new_patient_weight = patient[6]
-                patient = (new_patient_ssn, new_patient_fname, new_patient_lname, new_patient_gender, new_patient_age, new_patient_height, new_patient_weight, new_pcare[0])
+                patient[7] = new_pcare[0]
             workplaces = None
             try:
                 cursor.execute(f"SELECT * FROM Doctor WHERE DoctorID={patient[7]}")
