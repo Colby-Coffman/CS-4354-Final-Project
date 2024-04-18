@@ -197,7 +197,7 @@ def generate_works_at(cnx: mysql.connector.MySQLConnection):
     excluded_doctors = cursor.fetchall()
     cursor.execute("SELECT wp.Address FROM Workplace wp LEFT JOIN Works_at w ON wp.Address=w.Address WHERE w.Address IS NULL")
     excluded_workplaces = cursor.fetchall()
-    while (excluded_doctors and excluded_doctors):
+    while (excluded_doctors and excluded_workplaces):
         workplace_selection = random.randint(1,2)
         if (workplace_selection > len(excluded_workplaces)):
             workplace_selection = len(excluded_workplaces)
@@ -258,7 +258,7 @@ def generate_covered_by(cnx: mysql.connector.MySQLConnection):
             cursor.execute(add_covered_by, (ssn, insurance[0], insurance[1]))
     
 def generate_covers(cnx: mysql.connector.MySQLConnection):
-    cursor = cnx.cursor()
+    cursor = cnx.cursor(buffered=True)
     add_covers = "INSERT IGNORE INTO Covers (Generic_Name, IName) VALUES (%s, %s)"
     cursor.execute("SELECT m.Generic_Name FROM Medication m LEFT JOIN Covers c ON m.Generic_Name=c.Generic_Name WHERE c.Generic_Name IS NULL")
     excluded_medications = cursor.fetchall()

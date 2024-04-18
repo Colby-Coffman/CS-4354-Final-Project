@@ -53,7 +53,7 @@ CREATE TABLE Prescribes (
     Generic_Name VARCHAR(255),
     Date_Prescribed DATETIME,
     Reason TEXT,
-    Dosage DECIMAL(4,2),
+    Dosage DECIMAL(10,2),
     Expiry DATETIME,
     PRIMARY KEY (SSN, DoctorID, Generic_Name, Date_Prescribed),
     CONSTRAINT prescribes_patient_fk FOREIGN KEY (SSN) REFERENCES Patient (SSN),
