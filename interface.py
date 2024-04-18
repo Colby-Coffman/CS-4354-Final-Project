@@ -254,7 +254,7 @@ def context_output():
             if (res):
                 add_pays_for = "INSERT IGNORE INTO Pays_for (Generic_Name, SSN, IName, PName, Paid_Date, Payment) VALUES (%s, %s, %s, %s, %s, %s)"
                 if (not res[0]):
-                    cursor.execute(add_pays_for, (payment_prescription_name, patient_ssn, None, pharmacy[3], datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), (pharmacy[2])))
+                    cursor.execute(add_pays_for, (payment_prescription_name, patient_ssn, None, pharmacy[0], datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), pharmacy[2]))
                 else:
                     if ((res[0][3] - pharmacy[2]) > 0):
                         cursor.execute(f"UPDATE Covered_by SET DeductibleLeft={res[0][3] - pharmacy[2]} WHERE SSN={patient_ssn} AND IName='{res[0][0]}'")
