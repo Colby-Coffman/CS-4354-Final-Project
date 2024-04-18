@@ -160,6 +160,8 @@ def context_output():
             ct.patient_display(patient)
         case 'patient_view_primary_care':
             cursor = cnx.cursor(buffered=True)
+            cursor.execute(f"SELECT PCare_doctorid FROM Patient WHERE SSN={patient_ssn}")
+            patient[7] = cursor.fetchone()[0]
             workplaces = None
             try:
                 cursor.execute(f"SELECT * FROM Doctor WHERE DoctorID={patient[7]}")
