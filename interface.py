@@ -52,6 +52,7 @@ def context_output():
         case 'doctor_init_verify':
             global doctor
             cursor = cnx.cursor(buffered=True)
+            # 1. selecting the correct doctor from the doctor ID inputted
             cursor.execute(f"SELECT * FROM Doctor WHERE DoctorID={doctor_id}")
             doctor = cursor.fetchall()
             if (not doctor):
@@ -73,10 +74,12 @@ def context_output():
                     new_patient = res
         case 'doctor_prescriptions':
             cursor = cnx.cursor(buffered=True)
+            # 2. selecting all prescribes records where the doctor inputted is the prescribing doctor
             cursor.execute(f"SELECT * FROM Prescribes WHERE DoctorID={doctor_id}")
             prescriptions = cursor.fetchall()
             prescription_list = []
             for prescription_i in prescriptions:
+                # 3. Get the patient who has been prescribed by our doctor
                 cursor.execute(f"SELECT FirstName, LastName FROM Patient WHERE SSN={prescription_i[0]}")
                 first_name, last_name = cursor.fetchone()
                 prescription_list.append((first_name, last_name, prescription_i[0], prescription_i[2],
@@ -87,16 +90,19 @@ def context_output():
         case 'make_prescriptions':
             cursor = cnx.cursor(buffered=True)
             try:
+                # 4. Get the patient of the referenced prescription
                 cursor.execute(f"SELECT * FROM Patient WHERE SSN={prescription[0]}")
                 valid_ssn = cursor.fetchone()
             except:
                 valid_ssn = None
             try:
+                # 5. Get the full information of the medication who is referenced in the prescription
                 cursor.execute(f"SELECT * FROM Medication WHERE Generic_Name='{prescription[1]}'")
                 valid_generic = cursor.fetchone()
             except:
                 valid_generic = None
             valid_expiry = None
+            # get a valid date format
             if (re.match('\d{4}-\d{2}-\d{2}', prescription[4])):
                 valid_expiry = datetime.datetime.now().date()
                 valid_expiry = True if str(valid_expiry) < prescription[4] else None
@@ -104,6 +110,7 @@ def context_output():
                 print("Initialization Failed!")
                 time.sleep(1)
             else:
+                # 6. Adding a prescription at the behest of the doctor
                 add_prescription = "INSERT IGNORE INTO Prescribes (SSN, DoctorID, Generic_Name, Date_Prescribed, Reason, Dosage, Expiry) VALUES (%s, %s, %s, %s, %s, %s, %s)"
                 current_date = datetime.datetime.now()
                 expiry = datetime.datetime.strptime(prescription[4], "%Y-%m-%d")
@@ -117,12 +124,14 @@ def context_output():
             cursor.close()
         case 'doctor_patients':
             cursor = cnx.cursor()
+            # 7. get the patients who are overseen by the doctor
             cursor.execute(f"SELECT * FROM Patient WHERE PCare_doctorid={doctor_id}")
             patients = cursor.fetchall()
             ct.doctor_patients(doctor, patients)
             cursor.close()
         case 'doctor_pcare':
             cursor = cnx.cursor(buffered=True)
+            # 8. Getting the entity corresponding to the patient the pcare just assigned
             cursor.execute(f"SELECT * FROM Patient WHERE SSN={new_patient}")
             valid_patient = cursor.fetchone()
             if (not valid_patient):
@@ -130,6 +139,7 @@ def context_output():
                 time.sleep(1)
             else:
                 try:
+                    # 9. setting the patients pcare to us if they exist
                     cursor.execute(f"UPDATE IGNORE Patient SET PCare_doctorid={doctor_id}"
                                     f" WHERE SSN={new_patient}")
                     cnx.commit()
@@ -146,6 +156,8 @@ def context_output():
         case 'patient_init_verify':
             global patient
             cursor = cnx.cursor(buffered=True)
+            10. 
+            # 10. Get the entity corresponding to the patient SSN entered through the patient portal login
             cursor.execute(f"SELECT * FROM Patient WHERE SSN={patient_ssn}")
             patient = cursor.fetchall()
             if (not patient):
