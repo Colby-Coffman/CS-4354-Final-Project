@@ -162,7 +162,7 @@ def context_output():
             cursor = cnx.cursor(buffered=True)
             cursor.execute(f"SELECT PCare_doctorid FROM Patient WHERE SSN={patient_ssn}")
             new_pcare = cursor.fetchone()
-            if (new_pcare):
+            if (new_pcare[0]):
                 patient[7] = new_pcare[0]
             workplaces = None
             try:
